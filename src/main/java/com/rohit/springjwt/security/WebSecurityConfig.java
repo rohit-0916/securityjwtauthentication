@@ -57,7 +57,11 @@ public class WebSecurityConfig {
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
-  
+
+  @Bean
+  public CorsFilter corsFilter() {
+    return new CorsFilter();
+  }
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.cors().and().csrf().disable()
