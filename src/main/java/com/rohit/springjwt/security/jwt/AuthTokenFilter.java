@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.rohit.springjwt.security.services.UserDetailsServiceImpl;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
 public class AuthTokenFilter extends OncePerRequestFilter {
   @Autowired
@@ -52,6 +53,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     filterChain.doFilter(request, response);
   }
+
 
   private String parseJwt(HttpServletRequest request) {
     String headerAuth = request.getHeader("Authorization");
