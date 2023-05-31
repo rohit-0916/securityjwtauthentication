@@ -1,12 +1,13 @@
 package com.rohit.springjwt.controllers;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
+import com.rohit.springjwt.payload.request.ForgetPasswordRequest;
+import com.rohit.springjwt.payload.request.ResetPasswordRequest;
+import com.rohit.springjwt.security.services.MailSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,7 +35,7 @@ import com.rohit.springjwt.security.services.UserDetailsImpl;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
   @Autowired
   AuthenticationManager authenticationManager;
@@ -50,6 +51,13 @@ public class AuthController {
 
   @Autowired
   JwtUtils jwtUtils;
+
+  @Autowired
+  private final MailSender mailSender;
+
+  public AuthController(MailSender mailSender) {
+    this.mailSender = mailSender;
+  }
 
   @PostMapping("/login")
   public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -126,4 +134,54 @@ public class AuthController {
 
     return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
   }
+
+  @PostMapping("/forgotpassword")
+  public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgetPasswordRequest request){
+    String email = request.getEmail();
+    User user = userRepository.findByEmail(email);
+    if (user == null) {
+      return ResponseEntity
+              .badRequest()
+              .body(new MessageResponse("Error: Email does not exist."));
+    }
+    String resetToken = UUID.randomUUID().toString();
+
+    user.setResetToken(resetToken);
+    userRepository.save(user);
+    sendPasswordResetEmail(user.getEmail(), resetToken);
+
+    return ResponseEntity.ok(new MessageResponse("Password reset email has been sent."));
+
+  }
+
+  @PostMapping("/reset-password")
+  public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+    String resetToken = resetPasswordRequest.getResetToken();
+    String newPassword = resetPasswordRequest.getNewPassword();
+
+    User user = userRepository.findByResetToken(resetToken);
+
+    if (user == null) {
+      return ResponseEntity
+              .badRequest()
+              .body(new MessageResponse("Error: Invalid reset token."));
+    }
+
+    user.setPassword(encoder.encode(newPassword));
+    user.setResetToken(null);
+    userRepository.save(user);
+
+    return ResponseEntity.ok(new MessageResponse("Password reset successful."));
+  }
+  private void sendPasswordResetEmail(String recipientEmail, String resetToken) {
+    String subject = "Password Reset";
+    String content = "Dear User,\n\n"
+            + "Your password reset token is: " + resetToken + "\n\n"
+            + "If you didn't request a password reset, please ignore this email.\n\n"
+            + "Best regards,\n"
+            + "Your App Team";
+
+    mailSender.sendEmail(recipientEmail, subject, content);
+  }
+
 }
